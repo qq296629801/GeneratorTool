@@ -1,4 +1,4 @@
-package com.ymsys.cn.tool;
+package com.jyd.bms.tool;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -13,18 +13,21 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.zkoss.zhtml.Tr;
+
 /**
  * @category 代码生成器工具类
  * @author mjy
  * @version 1.0
  */
 public class GeneratorTool {
-	public static final String url = "jdbc:mysql://localhost/information_schema";
+	private static final int COLSPAN_SIZE = 4;
+	public static final String url = "jdbc:mysql://code-server/information_schema";
 	public static final String name = "com.mysql.jdbc.Driver";
-	public static final String user = "root";
-	public static final String password = "root";
-	public static final String tableName = "ba_duty_type";
-	public static final String dataBase = "bmsover20180125";
+	public static final String user = "code";
+	public static final String password = "jydcode";
+	public static final String tableName = "cus_contract_overdue_amount";
+	public static final String dataBase = "bms";
 	public static final String filePath = "";
 	public static boolean dataFlag = true;
 	public static boolean timeStampflag = true;
@@ -40,13 +43,321 @@ public class GeneratorTool {
 	 */
 	public void start() throws IOException {
 		List<Table> list = new TableDao().findByDataBase(dataBase);
-		generatorBean(list);
-		generatorXml(list);
-		generatorDao();
-		generatorImpl(list);
-		generatorService();
-		generatorZul(list);
-		generatorWindow(list);
+		 //generatorBean(list);
+		// generatorXml(list);
+		// generatorDao();
+		// generatorImpl(list);
+		// generatorService();
+//		generatorZul(list);
+//		generatorWindow(list);
+		 auxiliaryCode(list);
+	}
+
+	public void td(List<Table> list, StringBuilder code, int colsapn, int i) {
+		code.append("<h:td width=\"150px\" class=\"tdEvennoBorder\"><hbox><label value=\"" + list.get(i).getComment()
+				+ "\" /></hbox></h:td>");
+		if (i == list.size() - 1 && colsapn != 0) {
+			code.append("<h:td width=\"150px\" class=\"tdOddnoBorder\" colspan=\"" + colsapn + "\">\n");
+			code.append("<label value=\"\" id=\"" + getFirstWordLower(list.get(i).getColumn())
+					+ "Label\" visible=\"true\" />\n");
+			code.append("<textbox id=\"" + getFirstWordLower(list.get(i).getColumn())
+					+ "Textbox\" visible=\"false\" /></h:td>\n");
+		} else {
+			code.append("<h:td width=\"150px\" class=\"tdOddnoBorder\">\n");
+			code.append("<label value=\"\" id=\"" + getFirstWordLower(list.get(i).getColumn())
+					+ "Label\" visible=\"true\" />\n");
+			code.append("<textbox id=\"" + getFirstWordLower(list.get(i).getColumn())
+					+ "Textbox\" visible=\"false\" /></h:td>\n");
+		}
+	}
+
+	public void auxiliaryCode(List<Table> list) throws IOException {
+		StringBuilder code = new StringBuilder();
+		List<Table> tempList = new ArrayList<Table>();
+		for (int i = 0; i < list.size(); i++) {
+			if (list.get(i).getName().equals(tableName)) {
+				if (!list.get(i).getKey().equals("PRI")) {
+					if (!list.get(i).getColumn().equals("create_date") && !list.get(i).getColumn().equals("update_date")
+							&& !list.get(i).getColumn().equals("create_user")
+							&& !list.get(i).getColumn().equals("update_user")) {
+						tempList.add(list.get(i));
+					}
+				}
+			}
+		}
+		int allSize = tempList.size();
+		if (allSize == COLSPAN_SIZE) {
+			code.append("<h:tr>\n");
+			for (int i = 0; i < allSize; i++) {
+				td(tempList, code, 0, i);
+			}
+			code.append("</h:tr>\n");
+		} else if (allSize < COLSPAN_SIZE) {
+			code.append("<h:tr>\n");
+			for (int i = 0; i < allSize; i++) {
+				td(tempList, code, (COLSPAN_SIZE - allSize) * 2 + 1, i);
+			}
+			code.append("</h:tr>\n");
+		} else {
+			int times = (int) Math.floor(allSize / COLSPAN_SIZE);
+			int tdNum = 0;
+			for (int i = 0; i < times; i++) {
+				code.append("<h:tr>\n");
+				for (int j = tdNum; j < tdNum + COLSPAN_SIZE; j++) {
+					td(tempList, code, 0, j);
+				}
+				tdNum += COLSPAN_SIZE;
+				code.append("</h:tr>\n");
+			}
+			int surplus = 0;
+			int lastNum = allSize - times * COLSPAN_SIZE;
+			if (lastNum != 0) {
+				surplus = COLSPAN_SIZE - lastNum;
+				code.append("<h:tr>\n");
+				for (int i = tdNum; i < allSize; i++) {
+					td(tempList, code, surplus * 2 + 1, i);
+				}
+				code.append("</h:tr>\n");
+			}
+		}
+
+		code.append("\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("private Label " + getFirstWordLower(table.getColumn()) + "Label;\n");
+						code.append("//" + table.getComment() + "\n");
+						code.append("private Textbox " + getFirstWordLower(table.getColumn()) + "Textbox;\n");
+					}
+				}
+			}
+		}
+		code.append("\n");
+		code.append("private Button add" + getFirstWordCapital(tableName) + "Button;\n");
+		code.append("private Button save" + getFirstWordCapital(tableName) + "Button;\n");
+		code.append("private Button edit" + getFirstWordCapital(tableName) + "Button;\n");
+		code.append("private Button cancel" + getFirstWordCapital(tableName) + "Button;\n");
+		code.append("private Button delete" + getFirstWordCapital(tableName) + "Button;\n");
+		code.append("\n");
+
+		code.append("private int " + getFirstWordLower(tableName) + "Id=0;\n");
+		code.append("\n");
+
+		code.append(
+				"<button id=\"add" + getFirstWordCapital(tableName) + "Button\" visible=\"false\" label=\"增加\" />\n");
+		code.append(
+				"<button id=\"save" + getFirstWordCapital(tableName) + "Button\" visible=\"false\" label=\"保存\" />\n");
+		code.append(
+				"<button id=\"edit" + getFirstWordCapital(tableName) + "Button\" visible=\"false\" label=\"编辑\" />\n");
+		code.append("<button id=\"cancel" + getFirstWordCapital(tableName)
+				+ "Button\" visible=\"false\" label=\"取消\" />\n");
+		code.append("<button id=\"delete" + getFirstWordCapital(tableName)
+				+ "Button\" visible=\"false\" label=\"刪除\" />\n");
+		code.append("\n");
+
+		code.append("public void clear" + getFirstWordCapital(tableName) + "Textbox(){\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("" + getFirstWordLower(table.getColumn()) + "Label.setValue(\"\");\n");
+						code.append("" + getFirstWordLower(table.getColumn()) + "Textbox.setValue(\"\");\n");
+					}
+				}
+			}
+		}
+		code.append("}\n");
+		code.append("public void set" + getFirstWordCapital(tableName) + "Value(" + getFirstWordCapital(tableName) + " "
+				+ getFirstWordLower(tableName) + "){\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("" + getFirstWordLower(tableName) + ".set" + getFirstWordCapital(table.getColumn())
+								+ "(" + getFirstWordLower(table.getColumn()) + "Textbox.getValue());\n");
+					}
+				}
+			}
+		}
+		code.append("}\n");
+		code.append("public void set" + getFirstWordCapital(tableName) + "Data(" + getFirstWordCapital(tableName) + " "
+				+ getFirstWordLower(tableName) + "){\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("" + getFirstWordLower(table.getColumn()) + "Label.setValue("
+								+ getFirstWordLower(tableName) + ".get" + getFirstWordCapital(table.getColumn())
+								+ "());\n");
+						code.append("" + getFirstWordLower(table.getColumn()) + "Textbox.setValue("
+								+ getFirstWordLower(tableName) + ".get" + getFirstWordCapital(table.getColumn())
+								+ "());\n");
+					}
+				}
+			}
+		}
+		code.append("}\n");
+		code.append("\n");
+		code.append("public void enable" + getFirstWordCapital(tableName) + "Button(String type) {\n");
+		code.append("if (type.equals(\"add\")) {\nadd" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(false);\nedit" + getFirstWordCapital(tableName) + "Button.setVisible(false);\nsave"
+				+ getFirstWordCapital(tableName) + "Button.setVisible(true);\ncancel" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(true);\n}\n");
+		code.append("if (type.equals(\"update\")) {\nadd" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(false);\nedit" + getFirstWordCapital(tableName) + "Button.setVisible(false);\nsave"
+				+ getFirstWordCapital(tableName) + "Button.setVisible(true);\ncancel" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(true);\n}\n");
+		code.append("if (type.equals(\"cancel\")) {\nadd" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(true);\nedit" + getFirstWordCapital(tableName) + "Button.setVisible(false);\nsave"
+				+ getFirstWordCapital(tableName) + "Button.setVisible(false);\ncancel" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(false);\n}\n");
+		code.append("if (type.equals(\"save\")) {\nadd" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(true);\nedit" + getFirstWordCapital(tableName) + "Button.setVisible(false);\nsave"
+				+ getFirstWordCapital(tableName) + "Button.setVisible(false);\ncancel" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(false);\n}\n");
+		code.append("if (type.equals(\"select\")) {\nadd" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(true);\nedit" + getFirstWordCapital(tableName) + "Button.setVisible(true);\nsave"
+				+ getFirstWordCapital(tableName) + "Button.setVisible(false);\ncancel" + getFirstWordCapital(tableName)
+				+ "Button.setVisible(false);\n}\n");
+		code.append("}\n");
+
+		code.append("public void enable" + getFirstWordCapital(tableName) + "Textbox(boolean flag){\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("" + getFirstWordLower(table.getColumn()) + "Label.setVisible(!flag);\n");
+						code.append("" + getFirstWordLower(table.getColumn()) + "Textbox.setVisible(flag);\n");
+					}
+				}
+			}
+		}
+		code.append("}\n");
+		code.append("class " + getFirstWordCapital(tableName) + "Renderer implements ListitemRenderer {\n");
+		code.append("public void render(Listitem arg0, Object arg1, int arg2) throws Exception {\n");
+		code.append("" + getFirstWordCapital(tableName) + " " + getFirstWordLower(tableName) + " = ("
+				+ getFirstWordCapital(tableName) + ") arg1;\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("Listcell " + getFirstWordLower(table.getColumn()) + "Cell = new Listcell();\n");
+						code.append("" + getFirstWordLower(table.getColumn()) + "Cell.setParent(arg0);\n");
+						code.append("new Label(" + getFirstWordLower(tableName) + ".get"
+								+ getFirstWordCapital(table.getColumn()) + "()).setParent("
+								+ getFirstWordLower(table.getColumn()) + "Cell);\n");
+					}
+				}
+			}
+		}
+		code.append("arg0.setValue(" + getFirstWordLower(tableName) + ");\n");
+		code.append("}\n");
+		code.append("}\n");
+		code.append("\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")) {
+						code.append("<listheader label=\"" + table.getComment() + "\" />\n");
+					}
+				}
+			}
+		}
+		code.append("\n");
+		// check
+		code.append("public boolean check" + getFirstWordCapital(tableName) + "Input() {\n");
+		code.append("boolean flag = true;\n");
+		for (Table table : list) {
+			if (table.getName().equals(tableName)) {
+				if (!table.getKey().equals("PRI")) {
+					if (!table.getColumn().equals("create_date") && !table.getColumn().equals("update_date")
+							&& !table.getColumn().equals("create_user") && !table.getColumn().equals("update_user")
+							&& !table.getColumn().equals("remark")) {
+						code.append(
+								"if (" + getFirstWordLower(table.getColumn()) + "Textbox.getValue().equals(\"\")) {\n");
+						code.append("" + getFirstWordLower(table.getColumn()) + "Textbox.focus();\n");
+						code.append("Messagebox.show(\"" + getFirstWordLower(table.getComment()) + "不能为空！\");\n");
+						code.append("flag = false;\n");
+						code.append("}\n");
+					}
+				}
+			}
+		}
+		code.append("return flag;\n");
+		code.append("}\n");
+
+		// add
+		code.append("public void onClick$add" + getFirstWordCapital(tableName) + "Button() {\n");
+		code.append("" + getFirstWordLower(tableName) + "Id = 0;\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Textbox(true);\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"add\");\n");
+		code.append("clear" + getFirstWordCapital(tableName) + "Textbox();\n");
+		code.append("}\n");
+		code.append("\n");
+		// edit
+		code.append("public void onClick$save" + getFirstWordCapital(tableName) + "Button(){\n");
+		code.append("if (" + getFirstWordLower(tableName) + "Id == 0) {\n");
+		code.append("" + getFirstWordLower(tableName) + " = new xxxxxxxx();\n");
+		code.append("set" + getFirstWordCapital(tableName) + "Value(" + getFirstWordLower(tableName) + ");\n");
+		code.append("" + getFirstWordLower(tableName) + "List.add(" + getFirstWordLower(tableName) + ");\n");
+		code.append("} else {\n");
+		code.append("set" + getFirstWordCapital(tableName) + "Value(" + getFirstWordLower(tableName) + ");\n");
+		code.append("}\n");
+		code.append("" + getFirstWordLower(tableName) + "Listbox.setModel(new ListModelList<>("
+				+ getFirstWordLower(tableName) + "List, true));\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Textbox(false);\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"save\");\n");
+		code.append("clear" + getFirstWordCapital(tableName) + "Textbox();\n");
+		code.append("}\n");
+		code.append("\n");
+		// del
+		code.append("public void onClick$edit" + getFirstWordCapital(tableName) + "Button() {\n");
+		code.append("" + getFirstWordLower(tableName) + "Id = -1;\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Textbox(true);\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"update\");\n");
+		code.append("}\n");
+		code.append("\n");
+		// cancer
+		code.append("public void onClick$cancel" + getFirstWordCapital(tableName) + "Button() {\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"cancel\");\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Textbox(false);\n");
+		code.append("clear" + getFirstWordCapital(tableName) + "Textbox();\n");
+		code.append("}\n");
+		code.append("\n");
+		// save
+		code.append("public void onClick$delete" + getFirstWordCapital(tableName) + "Button() {\n");
+		code.append("del" + getFirstWordCapital(tableName) + "List.add(" + getFirstWordLower(tableName) + ");\n");
+		code.append("" + getFirstWordLower(tableName) + "List.remove(" + getFirstWordLower(tableName) + ");\n");
+		code.append("" + getFirstWordLower(tableName) + "Listbox.setModel(new ListModelList<>("
+				+ getFirstWordLower(tableName) + "List, true));\n");
+		code.append("clear" + getFirstWordCapital(tableName) + "Textbox();\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"cancel\");\n");
+		code.append("}\n");
+		code.append("\n");
+
+		// select
+
+		code.append("public void onSelect$" + getFirstWordLower(tableName) + "Listbox() {\n");
+		code.append("" + getFirstWordLower(tableName) + "=" + getFirstWordLower(tableName)
+				+ "Listbox.getSelectedItem().getValue();\n");
+		code.append("set" + getFirstWordCapital(tableName) + "Data(" + getFirstWordLower(tableName) + ");\n");
+		code.append("if (" + getFirstWordLower(tableName) + "Id == 2)\n");
+		code.append("return;\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Textbox(false);\n");
+		code.append("enable" + getFirstWordCapital(tableName) + "Button(\"select\");\n");
+		code.append("}\n");
+		code.append("\n");
+
+		File file = new File("/home/mjy/Desktop/auxiliaryCode.txt");
+		createFile(file, code.toString());
 	}
 
 	/**
@@ -83,12 +394,7 @@ public class GeneratorTool {
 		code.append("@Entity\n");
 		code.append("public class " + getFirstWordCapital(tableName) + " implements Serializable {\n");
 		code.append("private int id;\n");
-		code.append("public int getId() {\n");
-		code.append(" return id;\n");
-		code.append("}\n");
-		code.append("public void setId(int id) {\n");
-		code.append(" this.id = id;\n");
-		code.append("}\n");
+
 		for (Table table : list) {
 			if (table.getName().equals(tableName) && !table.getKey().equals("PRI")) {
 				/*********************** 定义字段 **********************/
@@ -100,8 +406,12 @@ public class GeneratorTool {
 				} else {
 					code.append(table.getColumn());
 				}
-				code.append(";\n");
+				code.append(";");
 				code.append("// " + table.getComment() + "\n");
+			}
+		}
+		for (Table table : list) {
+			if (table.getName().equals(tableName) && !table.getKey().equals("PRI")) {
 				/*********************** get方法 **********************/
 				code.append("public ");
 				code.append(getSwithType(table));
@@ -109,6 +419,14 @@ public class GeneratorTool {
 				code.append(" return " + getFirstWordLower(table.getColumn()) + ";\n");
 				code.append("}\n");
 				code.append("\n");
+			}
+		}
+		code.append("public int getId() {\n");
+		code.append(" return id;\n");
+		code.append("}\n");
+
+		for (Table table : list) {
+			if (table.getName().equals(tableName) && !table.getKey().equals("PRI")) {
 				/*********************** set方法 **********************/
 				code.append("public void ");
 				code.append("set" + getFirstWordCapital(table.getColumn()) + "(");
@@ -121,10 +439,13 @@ public class GeneratorTool {
 				code.append("\n");
 			}
 		}
+		code.append("public void setId(int id) {\n");
+		code.append(" this.id = id;\n");
+		code.append("}\n");
 		// 最后大括号结尾
 		code.append("}");
 		/******************* 生成文件 **************************/
-		File file = new File(getRootPath() + "\\src\\com\\jyd\\bms\\bean\\" + getFirstWordCapital(tableName) + ".java");
+		File file = new File(getRootPath() + "/src/com/jyd/bms/bean/" + getFirstWordCapital(tableName) + ".java");
 		createFile(file, code.toString());
 		System.out.println("创建Bean层文件成功！");
 	}
@@ -153,8 +474,7 @@ public class GeneratorTool {
 		code.append("\tpublic List<" + getFirstWordCapital(tableName) + "> getAll" + getFirstWordCapital(tableName)
 				+ "() throws DAOException;\n");
 		code.append("}");
-		File file = new File(
-				getRootPath() + "\\src\\com\\jyd\\bms\\dao\\" + getFirstWordCapital(tableName) + "DAO.java");
+		File file = new File(getRootPath() + "/src/com/jyd/bms/dao/" + getFirstWordCapital(tableName) + "DAO.java");
 		createFile(file, code.toString());
 		System.out.println("创建DAO层文件成功！");
 	}
@@ -232,7 +552,7 @@ public class GeneratorTool {
 		code.append(" }\n");
 		code.append("}\n");
 		File file = new File(
-				getRootPath() + "\\src\\com\\jyd\\bms\\dao\\impl\\" + getFirstWordCapital(tableName) + "DAOImpl.java");
+				getRootPath() + "/src/com/jyd/bms/dao/impl/" + getFirstWordCapital(tableName) + "DAOImpl.java");
 		createFile(file, code.toString());
 		System.out.println("创建DAOImpl成功！");
 	}
@@ -284,7 +604,7 @@ public class GeneratorTool {
 		code.append(" }\n");
 		code.append("}\n");
 		File file = new File(
-				getRootPath() + "\\src\\com\\jyd\\bms\\service\\" + getFirstWordCapital(tableName) + "Service.java");
+				getRootPath() + "/src/com/jyd/bms/service/" + getFirstWordCapital(tableName) + "Service.java");
 		createFile(file, code.toString());
 		System.out.println("创建Service层成功！");
 	}
@@ -319,7 +639,7 @@ public class GeneratorTool {
 		}
 		code.append("	</class>\n");
 		code.append("</hibernate-mapping>\n");
-		File file = new File(getRootPath() + "\\src\\hbm\\" + getFirstWordCapital(tableName) + ".hbm.xml");
+		File file = new File(getRootPath() + "/src/hbm/" + getFirstWordCapital(tableName) + ".hbm.xml");
 		createFile(file, code.toString());
 		System.out.println("创建xml配置文件成功！");
 	}
@@ -392,7 +712,8 @@ public class GeneratorTool {
 		// code.append(
 		// "public " + getFirstWordCapital(tableName) + "Window() {\nthis.menuId
 		// = \"" + tableName + "\";\n}\n");
-		code.append("public " + getFirstWordCapital(tableName) + "Window() {\nthis.menuId = \"index\";\n}\n");
+		code.append(
+				"public " + getFirstWordCapital(tableName) + "Window() {\nthis.menuId = \"" + tableName + "\";\n}\n");
 		code.append("public Listitem getSelectItem() {\nreturn " + getFirstWordLower(tableName)
 				+ "Listbox.getSelectedItem();\n}\n");
 		code.append("public void initUI() {\n" + getFirstWordLower(tableName) + "Service = getBean(\""
@@ -590,8 +911,8 @@ public class GeneratorTool {
 		code.append("}\n");
 		code.append("}\n");
 		code.append("}\n");
-		File file = new File(getRootPath() + "\\src\\com\\jyd\\bms\\window\\basedata\\" + getFirstWordCapital(tableName)
-				+ "Window.java");
+		File file = new File(
+				getRootPath() + "/src/com/jyd/bms/window/basedata/" + getFirstWordCapital(tableName) + "Window.java");
 		createFile(file, code.toString());
 		System.out.println("创建Window文件成功！");
 	}
@@ -642,6 +963,43 @@ public class GeneratorTool {
 		code.append("<south height=\"100px\" splittable=\"true\">\n");
 		code.append(
 				"<borderlayout><center flex=\"true\"><h:table width=\"100%\" cellpadding=\"1\" cellspacing=\"1\" class=\"tableBorderDark\">\n");
+
+		// int allSize = list.size();
+		// if (allSize == COLSPAN_SIZE) {
+		// code.append("<h:tr>\n");
+		// for (int i = 0; i < allSize; i++) {
+		// td(list, code, 0, i);
+		// }
+		// code.append("</h:tr>\n");
+		// } else if (allSize < COLSPAN_SIZE) {
+		// code.append("<h:tr>\n");
+		// for (int i = 0; i < allSize; i++) {
+		// td(list, code, (COLSPAN_SIZE - allSize) * 2 + 1, i);
+		// }
+		// code.append("</h:tr>\n");
+		// } else {
+		// int times = (int) Math.floor(allSize / COLSPAN_SIZE);
+		// int tdNum = 0;
+		// for (int i = 0; i < times; i++) {
+		// code.append("<h:tr>\n");
+		// for (int j = tdNum; j < tdNum + COLSPAN_SIZE; j++) {
+		// td(list, code, 0, j);
+		// }
+		// tdNum += COLSPAN_SIZE;
+		// code.append("</h:tr>\n");
+		// }
+		// int surplus = 0;
+		// int lastNum = allSize - times * COLSPAN_SIZE;
+		// if (lastNum != 0) {
+		// surplus = COLSPAN_SIZE - lastNum;
+		// code.append("<h:tr>\n");
+		// for (int i = tdNum; i < allSize; i++) {
+		// td(list, code, surplus * 2 + 1, i);
+		// }
+		// code.append("</h:tr>\n");
+		// }
+		// }
+
 		code.append("<h:tr>\n");
 		for (Table table : list) {
 			if (table.getName().equals(tableName)) {
@@ -661,7 +1019,6 @@ public class GeneratorTool {
 			}
 		}
 		code.append("</h:tr>\n");
-
 		code.append("</h:table>\n</center>\n<south>\n");
 		code.append("<hbox pack=\"center\" width=\"100%\">\n");
 		code.append("<hbox align=\"center\">\n");
@@ -670,7 +1027,7 @@ public class GeneratorTool {
 		code.append("<button id=\"saveButton\" label=\"保存\" visible=\"false\" />\n");
 		code.append("<button id=\"cancelButton\" label=\"取消\" visible=\"false\" />\n");
 		code.append("</hbox>\n</hbox>\n</south>\n</borderlayout>\n</south>\n</borderlayout>\n</window>\n</zk>\n");
-		File file = new File(getRootPath() + "\\WebContent\\basedata\\" + getFirstWordLower(tableName) + ".zul");
+		File file = new File(getRootPath() + "/WebContent/basedata/" + getFirstWordLower(tableName) + ".zul");
 		createFile(file, code.toString());
 		System.out.println("创建Zul文件成功！");
 	}
